@@ -40,6 +40,7 @@ const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({ c
 const LeafletMap: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>()
   const mapRef = useRef<any>(null)
+  const [isMounted, setIsMounted] = useState(false)
 
   const {
     center,
@@ -59,6 +60,11 @@ const LeafletMap: React.FC = () => {
   const [changeDetectionData, setChangeDetectionData] = useState<any>(null)
   const [isLoadingSatellite, setIsLoadingSatellite] = useState(false)
   const [isLoadingChange, setIsLoadingChange] = useState(false)
+
+  // Ensure component is mounted before rendering map (React 18 + Leaflet compatibility)
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Convert watersheds to GeoJSON format
   useEffect(() => {
@@ -206,6 +212,11 @@ const LeafletMap: React.FC = () => {
     `)
     
     layer.on('click', handleFeatureClick)
+  }
+
+  // Don't render map until component is mounted (prevents React 18 render issues)
+  if (!isMounted) {
+    return <LoadingSpinner size="lg" text="Initializing map..." />
   }
 
   return (
