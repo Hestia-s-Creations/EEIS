@@ -35,11 +35,11 @@ const Watershed = sequelize.define('Watershed', {
     type: DataTypes.GEOMETRY('MULTILINESTRING', 4326)
   },
   elevation: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   },
   climateData: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   },
   soilType: {
@@ -47,7 +47,7 @@ const Watershed = sequelize.define('Watershed', {
     defaultValue: 'mixed'
   },
   landUse: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {
       forest: 60,
       agriculture: 25,
@@ -66,7 +66,7 @@ const Watershed = sequelize.define('Watershed', {
     defaultValue: 75
   },
   metadata: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   }
 }, {

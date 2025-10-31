@@ -76,13 +76,13 @@ const ProcessingTask = sequelize.define('ProcessingTask', {
     type: DataTypes.TEXT
   },
   errorDetails: {
-    type: DataTypes.JSONB
+    type: DataTypes.JSON
   },
   result: {
-    type: DataTypes.JSONB
+    type: DataTypes.JSON
   },
   parameters: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   },
   logs: {
@@ -101,11 +101,11 @@ const ProcessingTask = sequelize.define('ProcessingTask', {
     defaultValue: 3
   },
   dependencies: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: []
   },
   resourceUsage: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   }
 }, {

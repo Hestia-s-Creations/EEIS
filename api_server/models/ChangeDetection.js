@@ -58,7 +58,7 @@ const ChangeDetection = sequelize.define('ChangeDetection', {
     field: 'processing_log'
   },
   metadata: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   },
   createdBy: {

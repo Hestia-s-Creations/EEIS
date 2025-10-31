@@ -52,7 +52,7 @@ const SatelliteData = sequelize.define('SatelliteData', {
     allowNull: false
   },
   cornerCoordinates: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   },
   footprint: {
@@ -60,15 +60,15 @@ const SatelliteData = sequelize.define('SatelliteData', {
     allowNull: false
   },
   bands: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: []
   },
   filePaths: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   },
   fileSizes: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   },
   processingStatus: {
@@ -76,11 +76,11 @@ const SatelliteData = sequelize.define('SatelliteData', {
     defaultValue: 'downloading'
   },
   qualityFlags: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   },
   metadata: {
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     defaultValue: {}
   },
   downloadUrl: {
