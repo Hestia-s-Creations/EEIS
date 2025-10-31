@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet'
-import { EditControl } from 'react-leaflet-draw'
+import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '../store'
 import { setMapView, toggleLayer, setSelectedFeatures } from '../store/slices/mapSlice'
@@ -8,7 +7,6 @@ import mapService from '../services/mapService'
 import LoadingSpinner from './ui/LoadingSpinner'
 import { Satellite, Layers, Download, Play, Pause } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
-import 'leaflet-draw/dist/leaflet.draw.css'
 
 interface WatershedFeature {
   id: string
