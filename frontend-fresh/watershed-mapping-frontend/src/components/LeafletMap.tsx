@@ -53,7 +53,7 @@ const LeafletMap: React.FC = () => {
     loading
   } = useSelector((state: RootState) => state.map)
 
-  const { watersheds } = useSelector((state: RootState) => state.watershed)
+  const { watersheds = [] } = useSelector((state: RootState) => state.watershed)
   const [watershedData, setWatershedData] = useState<any>(null)
   const [satelliteData, setSatelliteData] = useState<any>(null)
   const [changeDetectionData, setChangeDetectionData] = useState<any>(null)
