@@ -26,6 +26,8 @@ const satelliteRoutes = require('./routes/satellites');
 const changeDetectionRoutes = require('./routes/change-detection');
 const spatialRoutes = require('./routes/spatial');
 const progressRoutes = require('./routes/progress');
+const analyticsRoutes = require('./routes/analytics');
+const alertsRoutes = require('./routes/alerts');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
@@ -84,6 +86,8 @@ app.use('/api/satellites', satelliteRoutes);
 app.use('/api/change-detection', changeDetectionRoutes);
 app.use('/api/spatial', spatialRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/alerts', alertsRoutes);
 
 // Socket.IO initialization
 initSocket(io);
