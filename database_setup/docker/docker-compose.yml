@@ -1,0 +1,325 @@
+version: '3.8'
+
+# =============================================================================
+# Docker Compose for Watershed Disturbance Mapping System
+# PostgreSQL + PostGIS + TimescaleDB with automated setup
+# =============================================================================
+
+services:
+  # PostgreSQL Database with PostGIS and TimescaleDB
+  watershed-db:
+    image: timescale/timescaledb-ha:pg14-latest
+    container_name: watershed-postgres
+    restart: unless-stopped
+    
+    environment:
+      # Database Configuration
+      POSTGRES_DB: watershed_monitor
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: SecurePassword123!
+      POSTGRES_HOST_AUTH_METHOD: md5
+      
+      # Read-only user
+      POSTGRES_DB_WATERSHED_MONITOR_READUSER: read_user
+      POSTGRES_DB_WATERSHED_MONITOR_READUSER_PASSWORD: ReadOnlyPassword456!
+      
+      # TimescaleDB Configuration
+      TIMESCALEDB_TELEMETRY_LEVEL: 'off'
+      
+      # Memory Configuration (adjust based on available system memory)
+      POSTGRES_SHARED_BUFFERS: 1GB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 3GB
+      POSTGRES_WORK_MEM: 256MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 512MB
+      
+      # Connection Limits
+      POSTGRES_MAX_CONNECTIONS: 200
+      
+      # Performance Configuration
+      POSTGRES_CHECKPOINT_COMPLETION_TARGET: 0.9
+      POSTGRES_WAL_BUFFERS: 64MB
+      POSTGRES_MIN_WAL_SIZE: 2GB
+      POSTGRES_MAX_WAL_SIZE: 8GB
+      
+      # Logging Configuration
+      POSTGRES_LOG_MIN_DURATION_STATEMENT: 1000
+      POSTGRES_LOG_LINE_PREFIX: '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+      
+    ports:
+      - "5432:5432"
+    
+    volumes:
+      # Database data persistence
+      - postgres_data:/var/lib/postgresql/data
+      
+      # Custom configuration (optional)
+      - ./custom_configs/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./custom_configs/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      
+      # Initialization scripts
+      - ./database_scripts:/docker-entrypoint-initdb.d:ro
+      
+      # Log storage
+      - postgres_logs:/var/log/postgresql
+      
+      # Backup storage
+      - ./backups:/backups
+      
+      # TimescaleDB configuration scripts
+      - ./timescale_config:/etc/timescale-config:ro
+    
+    networks:
+      - watershed-network
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d watershed_monitor"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    
+    # Stop grace period for clean shutdown
+    stop_grace_period: 30s
+    
+    # Labels for management
+    labels:
+      - "com.watershed-monitor.role=primary-database"
+      - "com.watershed-monitor.version=1.0"
+
+  # PostgreSQL Backup Service
+  watershed-db-backup:
+    image: timescale/timescaledb-ha:pg14-latest
+    container_name: watershed-postgres-backup
+    restart: "no"
+    
+    environment:
+      PGUSER: app_user
+      PGPASSWORD: SecurePassword123!
+      PGHOST: watershed-db
+      PGDATABASE: watershed_monitor
+      PGPORT: 5432
+    
+    volumes:
+      - ./backup_scripts:/backup_scripts:ro
+      - ./backups:/backups
+    
+    networks:
+      - watershed-network
+    
+    depends_on:
+      - watershed-db
+    
+    profiles:
+      - backup  # Only runs with --profile backup
+
+  # Redis for connection pooling and caching
+  redis:
+    image: redis:7-alpine
+    container_name: watershed-redis
+    restart: unless-stopped
+    
+    command: redis-server --appendonly yes --requirepass RedisPassword123!
+    
+    ports:
+      - "6379:6379"
+    
+    volumes:
+      - redis_data:/data
+    
+    networks:
+      - watershed-network
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    labels:
+      - "com.watershed-monitor.role=caching"
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: watershed-pgadmin
+    restart: unless-stopped
+    
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@watershed-monitor.local
+      PGADMIN_DEFAULT_PASSWORD: AdminPassword123!
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+      
+      # Performance tuning
+      PGADMIN_CONFIG_WORKERS: 2
+      PGADMIN_CONFIG_THREAD_POOL: 'False'
+    
+    ports:
+      - "5050:80"
+    
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      
+      # Custom configuration
+      - ./config/pgadmin_servers.json:/pgadmin4/servers.json:ro
+    
+    networks:
+      - watershed-network
+    
+    depends_on:
+      - watershed-db
+    
+    profiles:
+      - management  # Optional, use --profile management to include
+    
+    labels:
+      - "com.watershed-monitor.role=admin-interface"
+
+  # Database monitoring with Prometheus (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: watershed-prometheus
+    restart: unless-stopped
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    
+    ports:
+      - "9090:9090"
+    
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    
+    networks:
+      - watershed-network
+    
+    profiles:
+      - monitoring  # Optional, use --profile monitoring to include
+    
+    labels:
+      - "com.watershed-monitor.role=monitoring"
+
+  # Grafana for visualization (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: watershed-grafana
+    restart: unless-stopped
+    
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: GrafanaAdmin123!
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel
+      GF_USERS_ALLOW_SIGN_UP: 'False'
+      
+      # Performance tuning
+      GF_RENDERING_SERVER_URL: http://renderer:8081/render
+      GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+      GF_LOG_FILTERS: rendering:debug
+    
+    ports:
+      - "3000:3000"
+    
+    volumes:
+      - grafana_data:/var/lib/grafana
+      
+      # Grafana configuration
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    
+    networks:
+      - watershed-network
+    
+    depends_on:
+      - prometheus
+      - watershed-db
+    
+    profiles:
+      - monitoring  # Optional, use --profile monitoring to include
+    
+    labels:
+      - "com.watershed-monitor.role=visualization"
+
+# =============================================================================
+# Networks
+# =============================================================================
+
+networks:
+  watershed-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+    driver_opts:
+      com.docker.network.bridge.name: watershed-net
+      com.docker.network.driver.mtu: 1500
+
+# =============================================================================
+# Volumes
+# =============================================================================
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+  
+  postgres_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs/postgres
+  
+  redis_data:
+    driver: local
+  
+  pgadmin_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/pgadmin
+  
+  prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/prometheus
+  
+  grafana_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/grafana

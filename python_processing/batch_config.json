@@ -1,0 +1,50 @@
+[
+  {
+    "source": "usgs",
+    "scene_id": "landsat_test_2023_001",
+    "latitude": 40.015,
+    "longitude": -105.2705,
+    "start_date": "2023-01-01",
+    "end_date": "2023-01-31",
+    "cloud_cover_max": 20,
+    "processing_level": "L2SP",
+    "output_dir": "./data/landsat_jan_2023",
+    "compare_with_previous": false
+  },
+  {
+    "source": "esa",
+    "scene_id": "sentinel2_test_2023_001",
+    "bbox": [-105.4, 39.9, -105.1, 40.2],
+    "start_date": "2023-01-01",
+    "end_date": "2023-01-31",
+    "cloud_cover_max": 15,
+    "processing_level": "L2A",
+    "output_dir": "./data/sentinel2_jan_2023",
+    "compare_with_previous": false
+  },
+  {
+    "source": "usgs",
+    "scene_id": "landsat_test_2023_002",
+    "latitude": 39.7392,
+    "longitude": -104.9903,
+    "start_date": "2023-02-01",
+    "end_date": "2023-02-28",
+    "cloud_cover_max": 25,
+    "processing_level": "L2SP",
+    "output_dir": "./data/landsat_feb_2023",
+    "compare_with_previous": true,
+    "previous_scene_id": "landsat_test_2023_001"
+  },
+  {
+    "source": "esa",
+    "scene_id": "sentinel2_test_2023_002",
+    "bbox": [-105.2, 39.6, -104.8, 39.9],
+    "start_date": "2023-02-01",
+    "end_date": "2023-02-28",
+    "cloud_cover_max": 20,
+    "processing_level": "L2A",
+    "output_dir": "./data/sentinel2_feb_2023",
+    "compare_with_previous": true,
+    "previous_scene_id": "sentinel2_test_2023_001"
+  }
+]
