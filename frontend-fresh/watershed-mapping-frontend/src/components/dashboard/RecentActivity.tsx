@@ -25,9 +25,9 @@ interface ActivityItem {
 }
 
 const RecentActivity: React.FC = () => {
-  const { alerts } = useSelector((state: RootState) => state.alert)
-  const { watersheds } = useSelector((state: RootState) => state.watershed)
-  
+  const { alerts = [] } = useSelector((state: RootState) => state.alert)
+  const { watersheds = [] } = useSelector((state: RootState) => state.watershed)
+
   const [activities, setActivities] = useState<ActivityItem[]>([])
 
   useEffect(() => {

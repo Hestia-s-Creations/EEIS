@@ -71,6 +71,7 @@ const Sidebar: React.FC = () => {
           <NavLink
             key={item.name}
             to={item.href}
+            data-testid={`nav-${item.href.replace('/', '')}`}
             className={({ isActive }) =>
               cn(
                 'flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors',

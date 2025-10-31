@@ -16,7 +16,7 @@ test.describe('Watershed Management', () => {
 
     // Check for watershed list or empty state
     const hasWatersheds = await page.locator('[data-testid="watershed-list"], .watershed-list, table').isVisible({ timeout: 5000 }).catch(() => false)
-    const hasEmptyState = await page.locator(':has-text("No watersheds"), :has-text("empty")').isVisible({ timeout: 2000 }).catch(() => false)
+    const hasEmptyState = await page.locator('[data-testid="watershed-empty-state"], :has-text("No watersheds"), :has-text("empty")').isVisible({ timeout: 2000 }).catch(() => false)
 
     expect(hasWatersheds || hasEmptyState).toBe(true)
   })

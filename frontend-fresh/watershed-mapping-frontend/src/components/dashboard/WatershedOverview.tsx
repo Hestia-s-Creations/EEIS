@@ -9,7 +9,7 @@ import { motion } from 'framer-motion'
 
 const WatershedOverview: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>()
-  const { watersheds, isLoading } = useSelector((state: RootState) => state.watershed)
+  const { watersheds = [], isLoading } = useSelector((state: RootState) => state.watershed)
 
   useEffect(() => {
     if (watersheds.length === 0) {
