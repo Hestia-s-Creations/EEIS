@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '../store'
 import { setMapView } from '../store/slices/mapSlice'
+import { fetchWatersheds } from '../store/slices/watershedSlice'
 import { Map, Layers, Satellite, BarChart3 } from 'lucide-react'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import StatCard from '../components/ui/StatCard'
@@ -12,7 +13,8 @@ const MapView: React.FC = () => {
   const { watersheds, isLoading: watershedsLoading } = useSelector((state: RootState) => state.watershed)
 
   useEffect(() => {
-    // Set default map view
+    // Fetch watersheds and set default map view
+    dispatch(fetchWatersheds({ page: 1, limit: 100 }))
     dispatch(setMapView({
       center: [40.7128, -74.0060], // NYC
       zoom: 10
