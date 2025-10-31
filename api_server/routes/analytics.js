@@ -29,19 +29,19 @@ router.get('/trends', authenticate, catchAsync(async (req, res) => {
   // Get change detection trends
   const changeDetectionTrends = await ChangeDetection.findAll({
     where: {
-      detectionDate: {
+      createdAt: {
         [Op.between]: [start, end]
       },
       ...(Object.keys(watershedFilter).length > 0 && { watershedId: watershedFilter.id })
     },
     attributes: [
-      [sequelize.fn('DATE', sequelize.col('detection_date')), 'date'],
+      [sequelize.fn('DATE', sequelize.col('created_at')), 'date'],
       [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
       [sequelize.fn('AVG', sequelize.col('confidence_score')), 'avgConfidence'],
-      'change_type'
+      'algorithm'
     ],
-    group: [sequelize.fn('DATE', sequelize.col('detection_date')), 'change_type'],
-    order: [[sequelize.fn('DATE', sequelize.col('detection_date')), 'ASC']],
+    group: [sequelize.fn('DATE', sequelize.col('created_at')), 'algorithm'],
+    order: [[sequelize.fn('DATE', sequelize.col('created_at')), 'ASC']],
     raw: true
   });
 
@@ -112,7 +112,7 @@ router.get('/realtime', authenticate, catchAsync(async (req, res) => {
   // Get recent changes (last hour)
   const recentChanges = await ChangeDetection.count({
     where: {
-      detectionDate: {
+      createdAt: {
         [Op.gte]: new Date(Date.now() - 60 * 60 * 1000)
       }
     }
@@ -139,7 +139,7 @@ router.get('/realtime', authenticate, catchAsync(async (req, res) => {
       model: ChangeDetection,
       as: 'changeDetections',
       where: {
-        detectionDate: {
+        createdAt: {
           [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000)
         }
       },
@@ -219,7 +219,7 @@ router.get('/data', authenticate, catchAsync(async (req, res) => {
       as: 'watershed',
       attributes: ['id', 'name', 'code']
     }],
-    order: [['detectionDate', 'DESC']],
+    order: [['createdAt', 'DESC']],
     limit: 100
   });
 

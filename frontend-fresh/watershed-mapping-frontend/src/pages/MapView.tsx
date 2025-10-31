@@ -77,13 +77,7 @@ const MapView: React.FC = () => {
       {/* Map Container */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="h-96 lg:h-[600px]">
-          {watershedsLoading ? (
-            <div className="h-full flex items-center justify-center">
-              <LoadingSpinner size="lg" text="Loading map data..." />
-            </div>
-          ) : (
-            <LeafletMap />
-          )}
+          <LeafletMap />
         </div>
       </div>
 

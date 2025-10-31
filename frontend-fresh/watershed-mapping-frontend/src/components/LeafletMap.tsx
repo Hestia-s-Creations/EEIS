@@ -27,10 +27,23 @@ interface WatershedFeature {
 // Inner component that uses map context
 const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({ center, zoom }) => {
   const map = useMap()
+  const centerRef = useRef<[number, number]>(center)
+  const zoomRef = useRef<number>(zoom)
 
   useEffect(() => {
     if (map) {
-      map.setView(center, zoom)
+      // Only update if center or zoom actually changed
+      const currentCenter = map.getCenter()
+      const currentZoom = map.getZoom()
+      const centerChanged = Math.abs(currentCenter.lat - center[0]) > 0.0001 ||
+                           Math.abs(currentCenter.lng - center[1]) > 0.0001
+      const zoomChanged = currentZoom !== zoom
+
+      if (centerChanged || zoomChanged) {
+        map.setView(center, zoom, { animate: false })
+        centerRef.current = center
+        zoomRef.current = zoom
+      }
     }
   }, [map, center, zoom])
 
@@ -40,7 +53,6 @@ const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({ c
 const LeafletMap: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>()
   const mapRef = useRef<any>(null)
-  const [isMounted, setIsMounted] = useState(false)
 
   const {
     center,
@@ -61,11 +73,6 @@ const LeafletMap: React.FC = () => {
   const [isLoadingSatellite, setIsLoadingSatellite] = useState(false)
   const [isLoadingChange, setIsLoadingChange] = useState(false)
 
-  // Ensure component is mounted before rendering map (React 18 + Leaflet compatibility)
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
   // Convert watersheds to GeoJSON format
   useEffect(() => {
     if (watersheds.length > 0) {
@@ -83,10 +90,11 @@ const LeafletMap: React.FC = () => {
           geometry: watershed.boundaries || {
             type: 'Polygon',
             coordinates: [[[
-              [-74.006, 40.7128],
-              [-74.006, 40.7128],
-              [-74.006, 40.7128],
-              [-74.006, 40.7128]
+              [-74.010, 40.710],
+              [-74.002, 40.710],
+              [-74.002, 40.716],
+              [-74.010, 40.716],
+              [-74.010, 40.710]
             ]]]
           }
         }))
@@ -214,11 +222,6 @@ const LeafletMap: React.FC = () => {
     layer.on('click', handleFeatureClick)
   }
 
-  // Don't render map until component is mounted (prevents React 18 render issues)
-  if (!isMounted) {
-    return <LoadingSpinner size="lg" text="Initializing map..." />
-  }
-
   return (
     <div className="relative w-full h-full">
       <MapContainer
@@ -227,6 +230,8 @@ const LeafletMap: React.FC = () => {
         zoom={zoom}
         style={{ height: '100%', width: '100%' }}
         className="rounded-lg"
+        preferCanvas={true}
+        zoomControl={true}
       >
         <MapController center={center} zoom={zoom} />
         <TileLayer

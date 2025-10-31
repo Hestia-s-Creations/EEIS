@@ -30,7 +30,7 @@ const WatershedOverview: React.FC = () => {
     return <XCircle className="h-4 w-4" />
   }
 
-  const topWatersheds = watersheds
+  const topWatersheds = [...watersheds]
     .sort((a, b) => b.healthScore - a.healthScore)
     .slice(0, 5)
 

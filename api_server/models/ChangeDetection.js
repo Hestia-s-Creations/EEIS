@@ -10,21 +10,20 @@ const ChangeDetection = sequelize.define('ChangeDetection', {
   watershedId: {
     type: DataTypes.UUID,
     allowNull: false,
+    field: 'watershed_id',
     references: {
       model: 'Watersheds',
       key: 'id'
     }
   },
   name: {
-    type: DataTypes.STRING(100),
+    type: DataTypes.STRING(255),
     allowNull: false
-  },
-  description: {
-    type: DataTypes.TEXT
   },
   baselineImageId: {
     type: DataTypes.UUID,
     allowNull: false,
+    field: 'baseline_image_id',
     references: {
       model: 'SatelliteData',
       key: 'id'
@@ -33,105 +32,49 @@ const ChangeDetection = sequelize.define('ChangeDetection', {
   comparisonImageId: {
     type: DataTypes.UUID,
     allowNull: false,
+    field: 'comparison_image_id',
     references: {
       model: 'SatelliteData',
       key: 'id'
     }
   },
-  baselineDate: {
-    type: DataTypes.DATEONLY,
-    allowNull: false
-  },
-  comparisonDate: {
-    type: DataTypes.DATEONLY,
-    allowNull: false
-  },
   algorithm: {
-    type: DataTypes.ENUM(
-      'ndvi_difference',
-      'ndwi_difference',
-      'ndbi_difference',
-      'pca_change',
-      'image_difference',
-      'change_vector_analysis',
-      'machine_learning'
-    ),
+    type: DataTypes.STRING(255),
     allowNull: false
   },
-  thresholds: {
-    type: DataTypes.JSONB,
-    defaultValue: {}
+  confidenceScore: {
+    type: DataTypes.DECIMAL,
+    field: 'confidence_score'
   },
-  processingParameters: {
-    type: DataTypes.JSONB,
-    defaultValue: {}
+  status: {
+    type: DataTypes.STRING(255)
   },
-  resultData: {
-    type: DataTypes.JSONB
+  resultPath: {
+    type: DataTypes.STRING(500),
+    field: 'result_path'
   },
-  statistics: {
-    type: DataTypes.JSONB,
-    defaultValue: {
-      totalArea: 0,
-      changedArea: 0,
-      unchangedArea: 0,
-      changePercentage: 0,
-      magnitude: {
-        min: 0,
-        max: 0,
-        mean: 0,
-        std: 0
-      }
-    }
-  },
-  classifiedChanges: {
-    type: DataTypes.JSONB,
-    defaultValue: []
-  },
-  confidenceScores: {
-    type: DataTypes.JSONB,
-    defaultValue: {}
-  },
-  visualizationUrl: {
-    type: DataTypes.STRING(500)
-  },
-  resultFilePath: {
-    type: DataTypes.STRING(500)
-  },
-  processingStatus: {
-    type: DataTypes.ENUM('pending', 'processing', 'completed', 'failed'),
-    defaultValue: 'pending'
-  },
-  progress: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-    validate: {
-      min: 0,
-      max: 100
-    }
-  },
-  errorMessage: {
-    type: DataTypes.TEXT
-  },
-  createdBy: {
-    type: DataTypes.UUID,
-    references: {
-      model: 'Users',
-      key: 'id'
-    }
-  },
-  processingStartedAt: {
-    type: DataTypes.DATE
-  },
-  processingCompletedAt: {
-    type: DataTypes.DATE
+  processingLog: {
+    type: DataTypes.TEXT,
+    field: 'processing_log'
   },
   metadata: {
     type: DataTypes.JSONB,
     defaultValue: {}
+  },
+  createdBy: {
+    type: DataTypes.UUID,
+    field: 'created_by',
+    references: {
+      model: 'Users',
+      key: 'id'
+    }
   }
 }, {
-  tableName: 'change_detections'
+  tableName: 'change_detections',
+  underscored: true,
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at'
 });
 
 module.exports = ChangeDetection;

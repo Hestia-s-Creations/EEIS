@@ -158,8 +158,8 @@ const watershedSlice = createSlice({
       })
       .addCase(fetchWatersheds.fulfilled, (state, action) => {
         state.isLoading = false
-        state.watersheds = action.payload.watersheds
-        state.pagination.total = action.payload.total
+        state.watersheds = action.payload.data.watersheds
+        state.pagination.total = action.payload.data.pagination.totalItems
       })
       .addCase(fetchWatersheds.rejected, (state, action) => {
         state.isLoading = false
@@ -173,7 +173,7 @@ const watershedSlice = createSlice({
       })
       .addCase(fetchWatershedById.fulfilled, (state, action) => {
         state.isLoading = false
-        state.selectedWatershed = action.payload
+        state.selectedWatershed = action.payload.data.watershed
       })
       .addCase(fetchWatershedById.rejected, (state, action) => {
         state.isLoading = false

@@ -19,7 +19,7 @@ router.get('/', authenticate, catchAsync(async (req, res) => {
     watershedId,
     startDate,
     endDate,
-    sortBy = 'detectionDate',
+    sortBy = 'createdAt',
     sortOrder = 'DESC'
   } = req.query;
 
@@ -32,13 +32,14 @@ router.get('/', authenticate, catchAsync(async (req, res) => {
   }
 
   if (startDate && endDate) {
-    whereClause.detectionDate = {
+    whereClause.createdAt = {
       [Op.between]: [new Date(startDate), new Date(endDate)]
     };
   }
 
-  // Map status and priority filters if needed
-  // For now, we'll use changeType as a proxy for alert type
+  if (status) {
+    whereClause.status = status;
+  }
 
   const alerts = await ChangeDetection.findAndCountAll({
     where: whereClause,
@@ -55,22 +56,23 @@ router.get('/', authenticate, catchAsync(async (req, res) => {
   });
 
   // Transform change detections into alert format
-  const transformedAlerts = alerts.rows.map(detection => ({
-    id: detection.id,
-    type: detection.changeType,
-    severity: detection.confidenceScore > 0.8 ? 'high' : detection.confidenceScore > 0.5 ? 'medium' : 'low',
-    status: 'active', // Could be extended with actual status tracking
-    message: `${detection.changeType} detected in ${detection.watershed?.name || 'unknown watershed'}`,
-    watershedId: detection.watershedId,
-    watershed: detection.watershed,
-    detectedAt: detection.detectionDate,
-    confidence: detection.confidenceScore,
-    area: detection.affectedArea,
-    location: detection.location,
-    metadata: detection.metadata,
-    createdAt: detection.createdAt,
-    updatedAt: detection.updatedAt
-  }));
+  const transformedAlerts = alerts.rows.map(detection => {
+    const confidence = parseFloat(detection.confidenceScore) || 0;
+    return {
+      id: detection.id,
+      type: detection.algorithm || 'change_detection',
+      severity: confidence > 0.8 ? 'high' : confidence > 0.5 ? 'medium' : 'low',
+      status: detection.status || 'active',
+      message: `Change detected using ${detection.algorithm} in ${detection.watershed?.name || 'unknown watershed'}`,
+      watershedId: detection.watershedId,
+      watershed: detection.watershed,
+      detectedAt: detection.createdAt,
+      confidence: confidence,
+      metadata: detection.metadata,
+      createdAt: detection.createdAt,
+      updatedAt: detection.updatedAt
+    };
+  });
 
   res.json({
     status: 'success',

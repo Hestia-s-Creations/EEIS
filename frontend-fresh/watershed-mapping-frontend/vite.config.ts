@@ -18,6 +18,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    port: 6969,
+    strictPort: true,
+    host: true
+  },
   optimizeDeps: {
     include: ['leaflet', 'react-leaflet'],
     exclude: ['@react-leaflet/core']

@@ -60,6 +60,11 @@ const Watershed = sequelize.define('Watershed', {
     type: DataTypes.ENUM('active', 'archived', 'monitoring'),
     defaultValue: 'active'
   },
+  healthScore: {
+    type: DataTypes.INTEGER,
+    field: 'health_score',
+    defaultValue: 75
+  },
   metadata: {
     type: DataTypes.JSONB,
     defaultValue: {}
