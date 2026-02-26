@@ -8,8 +8,28 @@ from datetime import datetime
 import warnings
 from scipy import ndimage
 from sklearn.cluster import KMeans
+from dataclasses import dataclass
 
-from ..config import Settings
+from config import Settings
+
+
+# ---- Burn severity thresholds (USGS/validated M3 method) ----
+@dataclass
+class SeverityBreaks:
+    """Threshold breaks for classifying a delta-index into severity classes."""
+    low: float
+    moderate: float
+    high: float
+
+
+SEVERITY_BREAKS = {
+    "dNBR": SeverityBreaks(0.10, 0.27, 0.66),
+    "dNDVI": SeverityBreaks(0.10, 0.25, 0.50),
+    "dEVI": SeverityBreaks(0.08, 0.20, 0.45),
+    "dSAVI": SeverityBreaks(0.10, 0.25, 0.50),
+}
+
+SEVERITY_LABELS = {0: "unburned", 1: "low", 2: "moderate", 3: "high"}
 
 
 logger = logging.getLogger(__name__)
@@ -76,7 +96,7 @@ class SpectralChangeDetector:
                                      indices: List[str]) -> Dict:
         """Calculate specified indices for a dataset."""
         
-        from ..preprocessing.spectral_indices import SpectralIndices
+        from preprocessing.spectral_indices import SpectralIndices
         spectral_calc = SpectralIndices(self.settings)
         
         calculated_indices = {}
@@ -341,7 +361,7 @@ class SpectralChangeDetector:
     def _detect_deforestation(self, dataset1: xr.Dataset, dataset2: xr.Dataset) -> Dict:
         """Detect deforestation using NDVI and NBR changes."""
         
-        from ..preprocessing.spectral_indices import SpectralIndices
+        from preprocessing.spectral_indices import SpectralIndices
         spectral_calc = SpectralIndices(self.settings)
         
         # Calculate NDVI and NBR for both datasets
@@ -375,46 +395,283 @@ class SpectralChangeDetector:
         return None
     
     def _detect_burn(self, dataset1: xr.Dataset, dataset2: xr.Dataset) -> Dict:
-        """Detect burn scars using NBR and NDSI changes."""
-        
-        from ..preprocessing.spectral_indices import SpectralIndices
+        """Detect burn scars using NBR and NDSI changes, with severity classification."""
+
+        from preprocessing.spectral_indices import SpectralIndices
         spectral_calc = SpectralIndices(self.settings)
-        
+
         # Calculate NBR and NDSI for both datasets
         nbr1 = spectral_calc.calculate_nbr(dataset1) if 'B5' in dataset1 and 'B7' in dataset1 else None
         nbr2 = spectral_calc.calculate_nbr(dataset2) if 'B5' in dataset2 and 'B7' in dataset2 else None
-        
+
         ndsi1 = spectral_calc.calculate_ndsi(dataset1) if 'B3' in dataset1 and 'B6' in dataset1 else None
         ndsi2 = spectral_calc.calculate_ndsi(dataset2) if 'B3' in dataset2 and 'B6' in dataset2 else None
-        
+
         burn_mask = None
-        
+
         if nbr1 is not None and nbr2 is not None:
             nbr_change = nbr2 - nbr1
             # Burn: significant NBR decrease
             burn_mask = nbr_change < -0.2
-            
+
             # Additional criteria
             if ndsi1 is not None and ndsi2 is not None:
                 ndsi_change = ndsi2 - ndsi1
                 # Burns often show increased snow index temporarily
                 burn_mask = burn_mask & (ndsi_change < 0.3)
-        
+
         if burn_mask is not None:
-            return {
+            result = {
                 'disturbance_type': 'burn',
                 'mask': burn_mask,
                 'confidence': self._calculate_disturbance_confidence(burn_mask, 'burn'),
                 'area_pixels': int(burn_mask.sum()),
                 'area_percentage': float(burn_mask.mean() * 100)
             }
-        
+
+            # Run severity classification when burn is detected
+            if int(burn_mask.sum()) > 0:
+                try:
+                    severity_result = self.classify_burn_severity(dataset1, dataset2)
+                    # Store only JSON-serializable statistics; rasters are kept
+                    # in-memory for GeoJSON export but not in the result dict
+                    result['burn_severity'] = severity_result['statistics']
+                    # Keep rasters available as private attrs for callers that need them
+                    result['_severity_map'] = severity_result['severity_map']
+                    result['_confidence_map'] = severity_result['confidence_map']
+                except Exception as e:
+                    logger.warning(f"Severity classification failed, returning binary only: {e}")
+
+            return result
+
         return None
+
+    def classify_burn_severity(
+        self,
+        pre_dataset: xr.Dataset,
+        post_dataset: xr.Dataset,
+        indices: List[str] = None,
+        threshold: float = 0.5,
+    ) -> Dict:
+        """Classify burn severity using M3 majority vote across multiple indices.
+
+        Uses the validated Veg-4 index set (dNBR, dNDVI, dEVI, dSAVI) with
+        USGS-standard severity breaks. Each index votes for a severity class
+        per pixel; the majority vote wins.
+
+        Args:
+            pre_dataset: Pre-fire satellite data (xr.Dataset with bands B2-B7).
+            post_dataset: Post-fire satellite data.
+            indices: Delta index names to use. Defaults to ["dNBR", "dNDVI", "dEVI", "dSAVI"].
+            threshold: Fraction of indices that must agree (0.5 = simple majority).
+
+        Returns:
+            Dict with:
+                severity_map: xr.DataArray (0=Unburned, 1=Low, 2=Moderate, 3=High)
+                confidence_map: xr.DataArray (0.0-1.0, fraction of indices that agreed)
+                statistics: Dict with per-class pixel counts and percentages
+        """
+        from preprocessing.spectral_indices import SpectralIndices
+        spectral_calc = SpectralIndices(self.settings)
+
+        if indices is None:
+            indices = ["dNBR", "dNDVI", "dEVI", "dSAVI"]
+
+        # Map delta names to calculator methods
+        calc_map = {
+            "dNBR": spectral_calc.calculate_nbr,
+            "dNDVI": spectral_calc.calculate_ndvi,
+            "dEVI": spectral_calc.calculate_evi,
+            "dSAVI": spectral_calc.calculate_savi,
+        }
+
+        # Compute delta images (pre - post: positive = vegetation loss)
+        # NOTE: Existing pipeline uses post - pre, so we negate here
+        deltas = {}
+        for delta_name in indices:
+            if delta_name not in calc_map:
+                logger.warning(f"Unknown severity index: {delta_name}, skipping")
+                continue
+            if delta_name not in SEVERITY_BREAKS:
+                logger.warning(f"No severity breaks for {delta_name}, skipping")
+                continue
+            try:
+                pre_idx = calc_map[delta_name](pre_dataset)
+                post_idx = calc_map[delta_name](post_dataset)
+                # pre - post: positive = loss (fire severity convention)
+                deltas[delta_name] = pre_idx - post_idx
+                logger.info(f"Computed {delta_name}: mean={float(deltas[delta_name].mean()):.4f}")
+            except Exception as e:
+                logger.warning(f"Could not compute {delta_name}: {e}")
+
+        if not deltas:
+            raise ValueError("No delta indices could be computed for severity classification")
+
+        n_indices = len(deltas)
+        ref = next(iter(deltas.values()))
+
+        # Count votes for each class (0-3) from each index
+        votes = np.zeros((4,) + ref.shape, dtype=np.float32)
+
+        for idx_name, delta in deltas.items():
+            breaks = SEVERITY_BREAKS[idx_name]
+            # Classify single index
+            classified = xr.full_like(delta, fill_value=0, dtype=np.float32)
+            classified = xr.where(delta < breaks.low, 0, classified)  # Unburned
+            classified = xr.where(
+                (delta >= breaks.low) & (delta < breaks.moderate), 1, classified
+            )  # Low
+            classified = xr.where(
+                (delta >= breaks.moderate) & (delta < breaks.high), 2, classified
+            )  # Moderate
+            classified = xr.where(delta >= breaks.high, 3, classified)  # High
+
+            for cls in range(4):
+                votes[cls] += (classified.values == cls).astype(np.float32)
+
+        # Calculate vote fractions
+        vote_fractions = votes / n_indices
+
+        # Find winning class per pixel (ties broken toward higher severity)
+        max_fraction = np.nanmax(vote_fractions, axis=0)
+        meets_threshold = max_fraction >= threshold
+
+        # Flip to break ties toward higher severity
+        flipped = vote_fractions[::-1]  # classes 3,2,1,0
+        winner_flipped = np.argmax(flipped, axis=0)
+        winner_class = 3 - winner_flipped
+
+        severity_values = np.where(meets_threshold, winner_class, 0).astype(np.float32)
+
+        severity_map = xr.DataArray(
+            severity_values,
+            coords=ref.coords,
+            dims=ref.dims,
+            attrs={"method": "M3_majority_vote", "threshold": threshold,
+                   "indices": list(deltas.keys())},
+        )
+
+        confidence_map = xr.DataArray(
+            max_fraction.astype(np.float32),
+            coords=ref.coords,
+            dims=ref.dims,
+            attrs={"description": "Fraction of indices agreeing on winning class"},
+        )
+
+        # Calculate statistics
+        total_pixels = int(np.prod(severity_values.shape))
+        valid_pixels = int(np.isfinite(severity_values).sum())
+
+        class_counts = {}
+        class_percentages = {}
+        for cls in range(4):
+            label = SEVERITY_LABELS[cls]
+            count = int((severity_values == cls).sum())
+            class_counts[label] = count
+            class_percentages[label] = (count / valid_pixels * 100) if valid_pixels > 0 else 0.0
+
+        statistics = {
+            'total_pixels': total_pixels,
+            'valid_pixels': valid_pixels,
+            'class_counts': class_counts,
+            'class_percentages': class_percentages,
+            'high_severity_percentage': class_percentages.get('high', 0.0),
+            'moderate_severity_percentage': class_percentages.get('moderate', 0.0),
+            'low_severity_percentage': class_percentages.get('low', 0.0),
+            'unburned_percentage': class_percentages.get('unburned', 0.0),
+            'indices_used': list(deltas.keys()),
+            'n_indices': n_indices,
+            'vote_threshold': threshold,
+            'mean_confidence': float(np.nanmean(max_fraction)),
+        }
+
+        logger.info(
+            f"Burn severity classification complete: "
+            f"High={class_percentages.get('high', 0):.1f}%, "
+            f"Moderate={class_percentages.get('moderate', 0):.1f}%, "
+            f"Low={class_percentages.get('low', 0):.1f}%, "
+            f"Unburned={class_percentages.get('unburned', 0):.1f}%"
+        )
+
+        return {
+            'severity_map': severity_map,
+            'confidence_map': confidence_map,
+            'statistics': statistics,
+        }
+
+    def severity_to_geojson(
+        self,
+        severity_map: xr.DataArray,
+        confidence_map: xr.DataArray,
+        transform=None,
+        crs=None,
+        simplify_tolerance: float = 0.0001,
+    ) -> Dict:
+        """Convert severity raster to GeoJSON FeatureCollection.
+
+        Args:
+            severity_map: Integer severity classes (0-3).
+            confidence_map: Confidence values (0.0-1.0).
+            transform: Affine transform from rasterio (for georeferencing).
+            crs: Coordinate reference system.
+            simplify_tolerance: Geometry simplification tolerance.
+
+        Returns:
+            GeoJSON FeatureCollection with severity polygons.
+        """
+        try:
+            from rasterio.features import shapes
+            from shapely.geometry import shape, mapping
+            from shapely.ops import unary_union
+        except ImportError:
+            logger.warning("rasterio/shapely not available, returning empty GeoJSON")
+            return {"type": "FeatureCollection", "features": []}
+
+        features = []
+        severity_arr = severity_map.values.astype(np.int32)
+        confidence_arr = confidence_map.values.astype(np.float32)
+
+        # Vectorize each severity class separately (skip unburned=0)
+        for cls in [1, 2, 3]:
+            class_mask = (severity_arr == cls).astype(np.uint8)
+            if class_mask.sum() == 0:
+                continue
+
+            try:
+                for geom, val in shapes(class_mask, transform=transform):
+                    if val == 0:
+                        continue
+
+                    poly = shape(geom)
+                    if simplify_tolerance > 0:
+                        poly = poly.simplify(simplify_tolerance, preserve_topology=True)
+
+                    if poly.is_empty:
+                        continue
+
+                    # Calculate mean confidence for this polygon's area
+                    area_hectares = poly.area * 1e4 if crs and 'degree' not in str(crs) else poly.area * 12321  # rough deg->ha
+
+                    features.append({
+                        "type": "Feature",
+                        "properties": {
+                            "severity": SEVERITY_LABELS[cls],
+                            "severity_class": cls,
+                            "confidence": float(np.nanmean(confidence_arr[class_mask == 1])),
+                            "area_hectares": round(area_hectares, 2),
+                        },
+                        "geometry": mapping(poly),
+                    })
+            except Exception as e:
+                logger.warning(f"Error vectorizing severity class {cls}: {e}")
+
+        logger.info(f"Generated {len(features)} severity polygons")
+        return {"type": "FeatureCollection", "features": features}
     
     def _detect_flood(self, dataset1: xr.Dataset, dataset2: xr.Dataset) -> Dict:
         """Detect flooding using NDWI changes."""
         
-        from ..preprocessing.spectral_indices import SpectralIndices
+        from preprocessing.spectral_indices import SpectralIndices
         spectral_calc = SpectralIndices(self.settings)
         
         # Calculate NDWI for both datasets
@@ -442,7 +699,7 @@ class SpectralChangeDetector:
     def _detect_urban_expansion(self, dataset1: xr.Dataset, dataset2: xr.Dataset) -> Dict:
         """Detect urban expansion using TCB and spectral changes."""
         
-        from ..preprocessing.spectral_indices import SpectralIndices
+        from preprocessing.spectral_indices import SpectralIndices
         spectral_calc = SpectralIndices(self.settings)
         
         # Calculate TCB for both datasets
