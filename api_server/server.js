@@ -28,11 +28,16 @@ const spatialRoutes = require('./routes/spatial');
 const progressRoutes = require('./routes/progress');
 const analyticsRoutes = require('./routes/analytics');
 const alertsRoutes = require('./routes/alerts');
-const settingsRoutes = require('./routes/settings');
-const notificationsRoutes = require('./routes/notifications');
-const satelliteSearchRoutes = require('./routes/satellite');
-const reportsRoutes = require('./routes/reports');
-const mapRoutes = require('./routes/map');
+// TODO: Implement settings routes — see SPEC for planned features
+// const settingsRoutes = require('./routes/settings');
+// TODO: Implement notifications routes — see SPEC for planned features
+// const notificationsRoutes = require('./routes/notifications');
+// TODO: Implement satellite search routes — see SPEC for planned features
+// const satelliteSearchRoutes = require('./routes/satellite');
+// TODO: Implement reports routes — see SPEC for planned features
+// const reportsRoutes = require('./routes/reports');
+// TODO: Implement map routes — see SPEC for planned features
+// const mapRoutes = require('./routes/map');
 const firesRoutes = require('./routes/fires');
 
 // Import middleware
@@ -100,11 +105,16 @@ app.use('/api/spatial', spatialRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/alerts', alertsRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/notifications', notificationsRoutes);
-app.use('/api/satellite', satelliteSearchRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/map', mapRoutes);
+// TODO: Implement settings routes — see SPEC for planned features
+// app.use('/api/settings', settingsRoutes);
+// TODO: Implement notifications routes — see SPEC for planned features
+// app.use('/api/notifications', notificationsRoutes);
+// TODO: Implement satellite search routes — see SPEC for planned features
+// app.use('/api/satellite', satelliteSearchRoutes);
+// TODO: Implement reports routes — see SPEC for planned features
+// app.use('/api/reports', reportsRoutes);
+// TODO: Implement map routes — see SPEC for planned features
+// app.use('/api/map', mapRoutes);
 app.use('/api/fires', firesRoutes);
 
 // Socket.IO initialization
@@ -130,15 +140,19 @@ const PORT = process.env.PORT || 5000;
 // Initialize database and start server
 // Register job queue workers
 const registerWorkers = async (boss) => {
-  const handleSatelliteProcess = require('./queue/workers/satelliteProcess');
+  // TODO: Implement satelliteProcess worker — see SPEC for planned features
+  // const handleSatelliteProcess = require('./queue/workers/satelliteProcess');
   const handleChangeDetection = require('./queue/workers/changeDetection');
-  const handleReportGeneration = require('./queue/workers/reportGeneration');
+  // TODO: Implement reportGeneration worker — see SPEC for planned features
+  // const handleReportGeneration = require('./queue/workers/reportGeneration');
   const handleAlertEvaluation = require('./queue/workers/alertEvaluation');
   const handleFirmsPolling = require('./queue/workers/firmsPolling');
 
-  await boss.work('satellite-process', handleSatelliteProcess);
+  // TODO: Implement satellite-process worker — see SPEC for planned features
+  // await boss.work('satellite-process', handleSatelliteProcess);
   await boss.work('change-detection', handleChangeDetection);
-  await boss.work('report-generation', handleReportGeneration);
+  // TODO: Implement report-generation worker — see SPEC for planned features
+  // await boss.work('report-generation', handleReportGeneration);
   await boss.work('alert-evaluation', handleAlertEvaluation);
   await boss.work('firms-polling', handleFirmsPolling);
 
