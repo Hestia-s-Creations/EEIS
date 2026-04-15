@@ -55,7 +55,8 @@
     "sharp": "^0.33.1",
     "csv-parser": "^3.0.0",
     "csv-writer": "^1.6.0",
-    "date-fns": "^3.0.6"
+    "date-fns": "^3.0.6",
+    "axios": "^1.15.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
