@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/api_server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 0  # security alerts only
+  - package-ecosystem: "npm"
+    directory: "/frontend-fresh/watershed-mapping-frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 0  # security alerts only
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 0  # security alerts only
+  - package-ecosystem: "pip"
+    directory: "/python_processing"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 0  # security alerts only
